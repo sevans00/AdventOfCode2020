@@ -11,7 +11,7 @@ namespace AdventOfCode2020
     {
         public static void Main(string[] args)
         {
-            Day7.Part2();
+            Day8.Part2();
 
             Console.ReadLine();
         }
