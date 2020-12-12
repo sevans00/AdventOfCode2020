@@ -11,8 +11,11 @@ namespace AdventOfCode2020
     {
         public static void Main(string[] args)
         {
-            Day11.Part2();
+            var startTime = DateTime.Now;
+            Day12.Part2();
+            var duration = DateTime.Now - startTime;
 
+            Console.WriteLine($"---\n{duration}");
             Console.ReadLine();
         }
     }
