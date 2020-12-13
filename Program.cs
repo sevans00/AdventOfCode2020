@@ -12,7 +12,7 @@ namespace AdventOfCode2020
         public static void Main(string[] args)
         {
             var startTime = DateTime.Now;
-            Day12.Part2();
+            Day13.Part3();
             var duration = DateTime.Now - startTime;
 
             Console.WriteLine($"---\n{duration}");
