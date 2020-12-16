@@ -100,7 +100,7 @@ namespace AdventOfCode2020.Days
             // 49x + 78 = 51x
 
             var busNotes3 = "67,7,59,61"; //754018
-            var busNotes4 = "67,x,7,59,61"; //779210
+            var  busNotes4 = "67,x,7,59,61"; //779210
             var busNotes5 = "67,7,x,59,61"; //1261476
             var busNotes6 = "1789,37,47,1889"; //1202161486
 
