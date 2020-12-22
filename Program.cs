@@ -12,7 +12,8 @@ namespace AdventOfCode2020
         public static void Main(string[] args)
         {
             var startTime = DateTime.Now;
-            Day17.Part2();
+            Console.BufferHeight = Int16.MaxValue - 1;
+            Day20.Part1();
             var duration = DateTime.Now - startTime;
 
             Console.WriteLine($"---\n{duration}");
