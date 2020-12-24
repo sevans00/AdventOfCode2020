@@ -153,17 +153,24 @@ namespace AdventOfCode2020.Days
             "..#.###...",
         };
 
+        public static string[] seaMonster = new string[]
+        {
+            "                  # ",
+            "#    ##    ##    ###",
+            " #  #  #  #  #  #   ",
+        };
+
         public static void Part1()
         {
-            //var inputStrings = File.ReadAllLines(inputFilePath);
-            var inputStrings = testInput;
+            var inputStrings = File.ReadAllLines(inputFilePath);
+            //var inputStrings = testInput;
 
 
             var tiles = new List<Tile>();
             var currentTileStrings = new List<string>();
             foreach (var inputString in inputStrings)
             {
-                if(string.IsNullOrEmpty(inputString))
+                if (string.IsNullOrEmpty(inputString))
                 {
                     tiles.Add(new Tile(currentTileStrings));
                     currentTileStrings = new List<string>();
@@ -177,10 +184,32 @@ namespace AdventOfCode2020.Days
 
             Console.WriteLine($"{tiles.Count}");
 
-            
-            var arrangedTiles = ArrangeTiles(tiles);
+
+            var tileIdToAllTilePermutations = new Dictionary<int, List<string>>();
+            foreach (var tile in tiles)
+            {
+                tileIdToAllTilePermutations[tile.Id] = tile.GetAllSidesPermutations();
+            }
+            var tilesToMatchCount = TilesToMatchCount2(tileIdToAllTilePermutations);
+
+            var ordered = tilesToMatchCount.OrderBy(kvp => kvp.Value).Select(kvp => $"{kvp.Key} Matched: {kvp.Value} sides");
+            Console.WriteLine(string.Join("\n", ordered));
+
+            var fourMatchers = tilesToMatchCount.Where(kvp => kvp.Value == 4).Select(kvp => kvp.Key);
+            ulong fourMatchersProduct = 1;
+            foreach (var fourMatcher in fourMatchers)
+            {
+                fourMatchersProduct *= (ulong)fourMatcher;
+            }
+            Console.WriteLine($"Product: {fourMatchersProduct}");
+
+            //Got our four corner matchers now
+
+
+
+            var arrangedTiles = ArrangeTiles(tiles, tilesToMatchCount);
             Console.WriteLine($"Max Used Count: {maxUsedCount}");
-            if(arrangedTiles == null)
+            if (arrangedTiles == null)
             {
                 Console.WriteLine("Did not find...");
                 return;
@@ -190,22 +219,368 @@ namespace AdventOfCode2020.Days
             {
                 for (int jj = 0; jj < arrangedTiles.GetLength(1); jj++)
                 {
-                    Console.Write($"[{arrangedTiles[ii, jj]?.Id}] ");
+                    Console.Write($"[{arrangedTiles[ii, jj]?.Id}{arrangedTiles[ii, jj].label}] ");
                 }
                 Console.WriteLine();
             }
 
+            var topLeft = arrangedTiles[0, 0];
+            var topRight = arrangedTiles[arrangedTiles.GetLength(0) - 1, 0];
+            var bottomLeft = arrangedTiles[0, arrangedTiles.GetLength(1) - 1];
+            var bottomRight = arrangedTiles[arrangedTiles.GetLength(0) - 1, arrangedTiles.GetLength(1) - 1];
+
+            Console.WriteLine($"{topLeft.Id}, {topRight.Id}, {bottomLeft.Id}, {bottomRight.Id}");
+            Console.WriteLine($"Product: {(long)topLeft.Id * (long)topRight.Id * (long)bottomLeft.Id * (long)bottomRight.Id}");
+
+            //We have the tiles now!
+
+            //Testing:
+            /*
+            var testTile = tiles[0];
+            Console.WriteLine($"{testTile.Id}:{testTile.label}\n{string.Join("\n", testTile.imageData)}");
+            Console.WriteLine($"====");
+            var rotatedTile = testTile.RotateClockwise();
+            Console.WriteLine($"{rotatedTile.Id}:{rotatedTile.label}\n{string.Join("\n", rotatedTile.imageData)}");
+
+            Console.WriteLine($"====");
+            var flipX = testTile.FlipX();
+            Console.WriteLine($"{flipX.Id}:{flipX.label}\n{string.Join("\n", flipX.imageData)}");
+            Console.WriteLine($"====");
+            var flipY = testTile.FlipY();
+            Console.WriteLine($"{flipY.Id}:{flipY.label}\n{string.Join("\n", flipY.imageData)}");
+            */
+
+
+            var fullTileMapString = "";
+            var tileSize = tiles[0].imageData.Count();
+            for (int xx = 0; xx < arrangedTiles.GetLength(0) * tileSize; xx++)
+            {
+                for (int yy = 0; yy < arrangedTiles.GetLength(1) * tileSize; yy++)
+                {
+                    //Totally not confusing at all
+                    var x = yy / tileSize;
+                    var y = xx / tileSize;
+                    var tile = arrangedTiles[x, y];
+
+                    var yMod = xx % tileSize;
+                    var xMod = yy % tileSize;
+                    if (yMod == 0 || yMod == tileSize - 1)
+                        fullTileMapString += " ";
+                    else if (xMod == 0 || xMod == tileSize - 1)
+                        fullTileMapString += " ";
+                    else
+                        fullTileMapString += tile.imageData[yMod][xMod];
+
+                }
+                fullTileMapString += "\n";
+            }
+            Console.WriteLine($"{fullTileMapString}");
+
+            var fullTileMapArray = fullTileMapString.Split('\n');
+            var compressedTileMapString = "";
+            for (int xx = 0; xx < arrangedTiles.GetLength(0) * tileSize; xx++)
+            {
+                for (int yy = 0; yy < arrangedTiles.GetLength(1) * tileSize; yy++)
+                {
+                    if (fullTileMapArray[xx][yy] == ' ')
+                        continue;
+                    Console.Write($"{fullTileMapArray[xx][yy]}");
+                    compressedTileMapString += fullTileMapArray[xx][yy];
+                }
+                if (string.IsNullOrEmpty(fullTileMapArray[xx].Trim()))
+                    continue;
+                Console.WriteLine($"");
+                compressedTileMapString += "\n";
+            }
+            Console.WriteLine("---");
+            Console.WriteLine(compressedTileMapString);
+            Console.WriteLine("---");
+
+            string[] seaMonster = new string[]
+            {
+                "                  # ",
+                "#    ##    ##    ###",
+                " #  #  #  #  #  #   ",
+            };
+
+            var compressedTileMapArray = compressedTileMapString.Trim().Split('\n').ToArray();
+            int numSeaMonsters = FindNumSeaMonsters(seaMonster, ref compressedTileMapArray);
+            Console.WriteLine("Sea Monsters Found: " + numSeaMonsters);
+            Console.WriteLine("Sea Monsters Found: \n" + string.Join("\n", compressedTileMapArray));
+
+            var newMapTile = new Tile(0, "", "", "", "", "", compressedTileMapArray.ToList());
+            var tilePermutations = newMapTile.GetTilePermutations();
+            foreach (var tile in tilePermutations)
+            {
+                var newArray = tile.imageData.ToArray();
+                numSeaMonsters = FindNumSeaMonsters(seaMonster, ref newArray);
+                Console.WriteLine($"Sea Monsters Found {tile.label}: " + numSeaMonsters);
+                if(numSeaMonsters > 0)
+                {
+                    //Console.WriteLine("Sea Monsters: \n" + string.Join("\n", newArray));
+                    
+                }
+                
+            }
+
+
         }
 
-        private static Tile[,] ArrangeTiles(List<Tile> tiles)
+        private static int FindNumSeaMonsters(string[] seaMonster, ref string[] compressedTileMapArray)
+        {
+            var newTileMapArray = new string[compressedTileMapArray.Length];
+            for (int ii = 0; ii < newTileMapArray.Length; ii++)
+            {
+                newTileMapArray[ii] = compressedTileMapArray[ii];
+            }
+            var numSeaMonsters = 0;
+            for (int xx = 0; xx < compressedTileMapArray[0].Length; xx++)
+            {
+                for (int yy = 0; yy < compressedTileMapArray.Length; yy++)
+                {
+                    var isSeaMonsterFound = true;
+                    if (xx + seaMonster[0].Length >= compressedTileMapArray[0].Length)
+                        continue;
+                    if (yy + seaMonster.Length >= compressedTileMapArray.Length)
+                        continue;
+                    for (int y = 0; y < seaMonster.Length; y++)
+                    {
+                        if (!isSeaMonsterFound)
+                            continue;
+                        for (int x = 0; x < seaMonster[0].Length; x++)
+                        {
+                            var seaChar = seaMonster[y][x];
+                            var mapTile = compressedTileMapArray[yy + y][xx + x];
+                            if (seaChar == ' ')
+                                continue; //Doesn't mattress
+                            if (mapTile != '#')
+                            {
+                                isSeaMonsterFound = false;
+                                continue;
+                            }
+                        }
+                    }
+                    if (isSeaMonsterFound)
+                    {
+                        numSeaMonsters++;
+
+                        for (int y = 0; y < seaMonster.Length; y++)
+                        {
+                            for (int x = 0; x < seaMonster[0].Length; x++)
+                            {
+                                var seaChar = seaMonster[y][x];
+                                var mapTile = compressedTileMapArray[yy + y][xx + x];
+                                if (seaChar == ' ')
+                                    continue; //Doesn't mattress
+                                if (mapTile == '#')
+                                {
+                                    newTileMapArray[yy + y] = newTileMapArray[yy + y].Substring(0, xx + x) + "O" + newTileMapArray[yy + y].Substring(xx + x + 1);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            var numNonSeaMonsterHash = 0;
+            for (int xx = 0; xx < compressedTileMapArray[0].Length; xx++)
+            {
+                for (int yy = 0; yy < compressedTileMapArray.Length; yy++)
+                {
+                    if (newTileMapArray[yy][xx] == '#')
+                        numNonSeaMonsterHash++;
+                }
+            }
+            Console.WriteLine($"Non Sea Monsters: {numNonSeaMonsterHash}");
+            return numSeaMonsters;
+        }
+
+        private static Dictionary<int, int> TilesToMatchCount2(Dictionary<int, List<string>> tileIdToAllTilePermutations)
+        {
+            var tileIdToEdgeMatchCount = new Dictionary<int, int>();
+            foreach (var kvp in tileIdToAllTilePermutations)
+            {
+                tileIdToEdgeMatchCount[kvp.Key] = 0;
+                foreach (var testKvp in tileIdToAllTilePermutations)
+                {
+                    if(kvp.Key == testKvp.Key)
+                    {
+                        continue;
+                    }
+                    var tileEdges = kvp.Value;
+                    var testTileEdges = testKvp.Value;
+
+                    var intersect = tileEdges.Intersect(testTileEdges);
+                    tileIdToEdgeMatchCount[kvp.Key] += intersect.Count();
+                }
+
+            }
+            return tileIdToEdgeMatchCount;
+        }
+
+
+
+
+
+        private static Tile[,] ArrangeTiles(List<Tile> tiles, Dictionary<int, int> tilesToMatchCount)
         {
             var sideLength = (int)Math.Sqrt(tiles.Count);
 
             var arrangedTiles = new Tile[sideLength, sideLength];
 
             var allTilePossibilities = tiles.SelectMany(tile => tile.GetTilePermutations()).ToList();
-            return ArrangeTiles(tiles, allTilePossibilities, arrangedTiles, new List<int>());
+
+            arrangedTiles = PlaceEdgeTiles(tiles, tilesToMatchCount, allTilePossibilities, arrangedTiles, new List<int>());
+
+            var usedIds = new List<int>();
+            foreach (var tile in arrangedTiles)
+            {
+                if (tile != null)
+                    usedIds.Add(tile.Id);
+            }
+
+            return ArrangeTiles(tiles, allTilePossibilities, arrangedTiles, usedIds);
         }
+
+        private static Tile[,] PlaceEdgeTiles(List<Tile> tiles, Dictionary<int, int> tilesToMatchCount, List<Tile> allTilePossibilities, Tile[,] arrangedTiles, List<int> usedIds)
+        {
+            var cornerTileIds = tilesToMatchCount.Where(kvp => kvp.Value == 4).Select(kvp => kvp.Key).Distinct();
+            var sideTileIds = tilesToMatchCount.Where(kvp => kvp.Value == 6).Select(kvp => kvp.Key).Distinct();
+
+            var allOtherTileIds = tilesToMatchCount.Where(kvp => kvp.Value > 6).Select(kvp => kvp.Key).Distinct();
+
+            var edgeTestTileIds = cornerTileIds.Concat(sideTileIds);
+
+            var edgeTileMap = PlaceEdgeTiles(
+                tiles.Where(
+                    tile => edgeTestTileIds.Contains(tile.Id)
+                    ).ToList(),
+                allTilePossibilities.Where(
+                    tile => edgeTestTileIds.Contains(tile.Id)
+                    ).ToList(),
+                arrangedTiles, 
+                usedIds);
+
+            return edgeTileMap;
+        }
+        private static Tile[,] PlaceEdgeTiles(List<Tile> tiles, List<Tile> allTilePossibilities, Tile[,] currentMap, List<int> usedIds)
+        {
+            WriteLine($"PlaceEdgeTiles: UsedIds: [{usedIds.Count}] {string.Join(",", usedIds)}");
+            if (usedIds.Count > maxUsedCount)
+            {
+                Console.WriteLine($"maxUsedCount went up to {maxUsedCount}.  Needs to get to {tiles.Count}");
+                maxUsedCount = usedIds.Count;
+            }
+            if (usedIds.Count == tiles.Count)
+            {
+                return currentMap;
+            }
+            var map = CopyMap(currentMap);
+
+            //ConsoleWriteMap(map);
+
+            FindFirstOpenEdge(map, out var x, out var y);
+            if (x < 0 && y < 0)
+                return currentMap;
+
+            foreach (var tile in allTilePossibilities)
+            {
+                if (usedIds.Contains(tile.Id))
+                {
+                    continue;
+                }
+                WriteLine($"Testing {tile}");
+
+                if (DoesTileFit(map, tile, x, y))
+                {
+                    WriteLine($"Tile Fits! {tile}");
+                    //This fits...
+                    map[x, y] = tile;
+                    var newUsedIds = usedIds.Select(id => id).ToList();
+                    newUsedIds.Add(tile.Id);
+                    var fullMap = PlaceEdgeTiles(tiles, allTilePossibilities, map, newUsedIds);
+                    if (fullMap != null)
+                        return fullMap;
+                }
+            }
+            WriteLine($"--- Nothing Fit ---");
+            return null;
+
+        }
+        private static void FindFirstOpenEdge(Tile[,] arrangedTiles, out int x, out int y)
+        {
+            for (int yy = 0; yy < arrangedTiles.GetLength(1); yy++)
+            {
+                for (int xx = 0; xx < arrangedTiles.GetLength(0); xx++)
+                {
+                    //Only edges!
+                    if(xx > 0 && xx < arrangedTiles.GetLength(0) - 1)
+                    {
+                        //Not an edge!  Unless...
+                        if (yy != 0 && yy != arrangedTiles.GetLength(1) - 1)
+                        {
+                            continue;
+                        }
+                    }
+                    //Only edges!
+                    if (yy > 0 && yy < arrangedTiles.GetLength(1) - 1)
+                    {
+                        //Not an edge!  Unless...
+                        if (xx != 0 && xx != arrangedTiles.GetLength(0) - 1)
+                        {
+                            continue;
+                        }
+                    }
+
+                    var testTile = arrangedTiles[xx, yy];
+                    if (testTile == null)
+                    {
+                        x = xx;
+                        y = yy;
+                        return;
+                    }
+                }
+            }
+            x = -1;
+            y = -1;
+        }
+
+        private static Dictionary<Tile, int> TilesToMatchCount(List<Tile> tiles, List<Tile> allTilePossibilities, Tile[,] currentMap, List<int> usedIds)
+        {
+            var tilesToEdgeMatchCount = new Dictionary<Tile, int>();
+            foreach (var tile in allTilePossibilities)
+            {
+                tilesToEdgeMatchCount[tile] = 0;
+                foreach (var testTile in allTilePossibilities)
+                {
+                    if (tile.Id == testTile.Id) //No self-match
+                        continue;
+                    //Test Tile Is LEFT of tile:
+                    if (testTile.RightNumber == Tile.FlipString(tile.LeftNumber))
+                    {
+                        tilesToEdgeMatchCount[tile]++;
+                    }
+                    //Test Tile Is RIGHT of tile:
+                    if (testTile.LeftNumber == Tile.FlipString(tile.RightNumber))
+                    {
+                        tilesToEdgeMatchCount[tile]++;
+                    }
+                    //Test Tile Is TOP of tile:
+                    if (testTile.BottomNumber == Tile.FlipString(tile.TopNumber))
+                    {
+                        tilesToEdgeMatchCount[tile]++;
+                    }
+                    //Test Tile Is BOTTOM of tile:
+                    if (testTile.TopNumber == Tile.FlipString(tile.BottomNumber))
+                    {
+                        tilesToEdgeMatchCount[tile]++;
+                    }
+                }
+            }
+            return tilesToEdgeMatchCount;
+        }
+
+
 
         public static void WriteLine(string str)
         {
@@ -215,27 +590,24 @@ namespace AdventOfCode2020.Days
         private static int maxUsedCount = 0;
         private static Tile[,] ArrangeTiles(List<Tile> tiles, List<Tile> allTilePossibilities, Tile[,] currentMap, List<int> usedIds)
         {
-            Console.WriteLine($"ArrangeTiles: UsedIds: [{usedIds.Count}] {string.Join(",",usedIds)}");
+            WriteLine($"ArrangeTiles: UsedIds: [{usedIds.Count}] {string.Join(",",usedIds)}");
             if(usedIds.Count > maxUsedCount)
             {
+                Console.WriteLine($"maxUsedCount went up to {maxUsedCount}.  Needs to get to {tiles.Count}");
                 maxUsedCount = usedIds.Count;
             }
             if(usedIds.Count == tiles.Count)
             {
-                //return currentMap;
+                return currentMap;
             }
             var map = CopyMap(currentMap);
 
-            ConsoleWriteMap(map);
+            //ConsoleWriteMap(map);
 
             FindFirstOpenSpot(map, out var x, out var y);
             if (x < 0 && y < 0)
                 return currentMap;
 
-            if(map[0,0]?.Id == 1951 && map[1,0]?.Id == 2311)
-            {
-                Console.WriteLine("1951");
-            }
 
             foreach (var tile in allTilePossibilities)
             {
@@ -244,11 +616,19 @@ namespace AdventOfCode2020.Days
                     continue;
                 }
                 WriteLine($"Testing {tile}");
-
+/*
                 if (map[0, 0]?.Id == 1951 && map[1, 0]?.Id == 2311 && tile.Id == 3079)
                 {
                     Console.WriteLine("1951");
                 }
+
+                if (map[0, 0]?.Id == 1951 && map[1, 0]?.Id == 2311 && tile.Id == 3079)
+                {
+                    Console.WriteLine($"{map[1, 0].RightNumber}\n{tile.LeftNumber}");
+                    Console.WriteLine($"{map[1, 0].RightNumber == tile.LeftNumber}");
+
+                }
+*/
 
                 if (DoesTileFit(map, tile, x, y))
                 {
@@ -262,7 +642,7 @@ namespace AdventOfCode2020.Days
                         return fullMap;
                 }
             }
-            Console.WriteLine($"--- Nothing Fit ---");
+            WriteLine($"--- Nothing Fit ---");
             return null;
         }
 
@@ -307,7 +687,7 @@ namespace AdventOfCode2020.Days
             }
             if(testTile != null)
             {
-                if(testTile.RightNumber != tile.LeftNumber)
+                if(testTile.RightNumber != Tile.FlipString( tile.LeftNumber ))
                 {
                     return false;
                 }
@@ -321,7 +701,7 @@ namespace AdventOfCode2020.Days
             }
             if (testTile != null)
             {
-                if (testTile.LeftNumber != tile.RightNumber)
+                if (testTile.LeftNumber != Tile.FlipString(tile.RightNumber))
                 {
                     return false;
                 }
@@ -335,7 +715,7 @@ namespace AdventOfCode2020.Days
             }
             if (testTile != null)
             {
-                if (testTile.BottomNumber != tile.TopNumber)
+                if (testTile.BottomNumber != Tile.FlipString(tile.TopNumber))
                 {
                     return false;
                 }
@@ -349,7 +729,7 @@ namespace AdventOfCode2020.Days
             }
             if (testTile != null)
             {
-                if (testTile.TopNumber != tile.BottomNumber)
+                if (testTile.TopNumber != Tile.FlipString(tile.BottomNumber))
                 {
                     return false;
                 }
@@ -384,10 +764,10 @@ namespace AdventOfCode2020.Days
 
             public List<string> imageData;
 
-            public int TopNumber;
-            public int RightNumber;
-            public int BottomNumber;
-            public int LeftNumber;
+            public string TopNumber;
+            public string RightNumber;
+            public string BottomNumber;
+            public string LeftNumber;
 
             public string label;
 
@@ -398,13 +778,14 @@ namespace AdventOfCode2020.Days
 
                 imageData = inputStrings.Skip(1).ToList();
 
-                TopNumber = GetEdgeNumber(imageData[0]);
-                RightNumber = GetEdgeNumber(string.Join("", imageData.Select(str => str[str.Length - 1])));
-                BottomNumber = GetEdgeNumber(imageData[imageData.Count - 1]);
-                LeftNumber = GetEdgeNumber(string.Join("", imageData.Select(str => str[0])) );
+                //Make sure we're reading in a Clockwise way:
+                TopNumber = (imageData[0]);
+                RightNumber = (string.Join("", imageData.Select(str => str[str.Length - 1])));
+                BottomNumber = (string.Join("", imageData[imageData.Count - 1].Reverse()));
+                LeftNumber = (string.Join("", imageData.Select(str => str[0]).Reverse()) );
                 label = " ";
             }
-            public Tile(int id, int topNumber, int rightNumber, int bottomNumber, int leftNumber, string label, List<string> imageData)
+            public Tile(int id, string topNumber, string rightNumber, string bottomNumber, string leftNumber, string label, List<string> imageData)
             {
                 Id = id;
 
@@ -432,21 +813,59 @@ namespace AdventOfCode2020.Days
 
             public Tile RotateClockwise()
             {
-                return new Tile(Id, FlipBinaryNumber(LeftNumber), TopNumber, FlipBinaryNumber(RightNumber), BottomNumber, label+"R", imageData);
-            }
-            private Tile RotateClockwiseTwice()
-            {
-                return new Tile(Id, FlipBinaryNumber(BottomNumber), FlipBinaryNumber(LeftNumber), FlipBinaryNumber(TopNumber), FlipBinaryNumber(RightNumber), label + "RR", imageData);
+                var image2dArray = new char[imageData.Count, imageData.Count];
+                for (int xx = 0; xx < imageData.Count; xx++)
+                {
+                    for (int yy = 0; yy < imageData.Count; yy++)
+                    {
+                        image2dArray[xx,yy] = imageData[yy][xx];
+                    }
+                }
+                var newImageArray = new char[imageData.Count, imageData.Count];
+                var width = image2dArray.GetLength(0);
+                var height = image2dArray.GetLength(1);
+
+                for (int row = 0; row < image2dArray.GetLength(0); row++)
+                {
+                    for (int col = 0; col < image2dArray.GetLength(1); col++)
+                    {
+                        int newRow = col;
+                        int newCol = height - (row + 1);
+
+                        newImageArray[newCol, newRow] = image2dArray[col, row];
+                    }
+                }
+
+                var rotatedImageData = new List<string>();
+                for (int yy = 0; yy < imageData.Count; yy++) 
+                {
+                    var xRowString = "";
+                    for (int xx = 0; xx < imageData.Count; xx++)
+                    {
+                        xRowString += newImageArray[xx, yy];
+                    }
+                    rotatedImageData.Add(xRowString);
+                }
+
+                return new Tile(Id, LeftNumber, TopNumber, RightNumber, BottomNumber, label+"R", rotatedImageData);
             }
 
             public Tile FlipX()
             {
-                return new Tile(Id, FlipBinaryNumber(TopNumber), LeftNumber, FlipBinaryNumber(BottomNumber), RightNumber, label + "FlX", imageData);
+                var flippedImageData = imageData.Select(str => string.Join("", str.Reverse())).ToList();
+                return new Tile(Id, FlipString(TopNumber), FlipString(LeftNumber), FlipString(BottomNumber), FlipString(RightNumber), label + "FlX", flippedImageData);
             }
 
             public Tile FlipY()
             {
-                return new Tile(Id, BottomNumber, FlipBinaryNumber(RightNumber), TopNumber, FlipBinaryNumber(LeftNumber), label + "FlY", imageData);
+                var flippedImageData = imageData.Select(str => str).ToList();
+                flippedImageData.Reverse();
+                return new Tile(Id, FlipString(BottomNumber), FlipString(RightNumber), FlipString(TopNumber), FlipString(LeftNumber), label + "FlY", flippedImageData);
+            }
+
+            public static string FlipString(string number)
+            {
+                return string.Join("", number.Reverse());
             }
 
             private int FlipBinaryNumber(int number)
@@ -464,19 +883,34 @@ namespace AdventOfCode2020.Days
                     this,
                     FlipX(),
                     FlipY(),
-                    FlipX().FlipY(), //This is probably the same as something else... ah, right, double rotation
+                    //FlipX().FlipY(), //This is probably the same as something else... ah, right, double rotation, eh, leave it in
                     RotateClockwise(),
-                    RotateClockwiseTwice(), 
+                    RotateClockwise().RotateClockwise(), 
                     RotateClockwise().RotateClockwise().RotateClockwise(),
                     FlipX().RotateClockwise(),
-                    FlipX().RotateClockwiseTwice(),
-                    FlipX().RotateClockwiseTwice().RotateClockwise(),
+                    FlipX().RotateClockwise().RotateClockwise(),
+                    FlipX().RotateClockwise().RotateClockwise().RotateClockwise(),
                     FlipY().RotateClockwise(),
-                    FlipY().RotateClockwiseTwice(),
-                    FlipY().RotateClockwiseTwice().RotateClockwise(),
+                    FlipY().RotateClockwise().RotateClockwise(),
+                    FlipY().RotateClockwise().RotateClockwise().RotateClockwise(),
                 };
             }
 
+            public List<string> GetAllSidesPermutations()
+            {
+                return new List<string>()
+                {
+                    this.TopNumber,
+                    this.RightNumber,
+                    this.BottomNumber,
+                    this.LeftNumber,
+
+                    FlipString(this.TopNumber      ),
+                    FlipString(this.RightNumber    ),
+                    FlipString(this.BottomNumber   ),
+                    FlipString(this.LeftNumber     ),
+                };
+            }
         }
 
     }
